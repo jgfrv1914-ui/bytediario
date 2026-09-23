@@ -67,13 +67,19 @@ def main():
     cfg = load_config()
     n = cfg["channel"]["videos_per_run"]
 
+    failures = 0
     for i in range(n):
         logger.info(f"--- Video {i + 1}/{n} ---")
         try:
             run_once(cfg, skip_upload=args.__dict__["sin_subir"])
         except Exception as e:
+            failures += 1
             logger.error(f"Falló la corrida {i + 1}: {e}")
             continue
+
+    if failures:
+        logger.error(f"{failures}/{n} corrida(s) fallaron")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

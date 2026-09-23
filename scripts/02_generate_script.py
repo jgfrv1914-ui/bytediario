@@ -126,7 +126,7 @@ def generate_script(item_id: str, cfg: dict) -> dict:
         "sistema, citando estas mismas noticias en \"fuentes\"."
     )
 
-    model_name = os.environ.get("HF_SCRIPT_MODEL", cfg["script"].get("model", "Qwen/Qwen2.5-3B-Instruct"))
+    model_name = os.environ.get("HF_SCRIPT_MODEL") or cfg["script"].get("model", "Qwen/Qwen2.5-3B-Instruct")
     try:
         tokenizer, model = _load_model(model_name)
         messages = [{"role": "system", "content": system}, {"role": "user", "content": user_prompt}]

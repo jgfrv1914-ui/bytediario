@@ -26,7 +26,7 @@ def generate_audio(item_id: str) -> str:
 
     logger.info(f"Generando audio para item {item_id}...")
     cfg = load_config()
-    model_name = os.environ.get("HF_TTS_MODEL", cfg.get("tts", {}).get("model", "facebook/mms-tts-spa"))
+    model_name = os.environ.get("HF_TTS_MODEL") or cfg.get("tts", {}).get("model", "facebook/mms-tts-spa")
     try:
         if model_name not in _PIPELINES:
             logger.info(f"Cargando modelo HF TTS '{model_name}' (primera ejecución descarga los pesos)...")
