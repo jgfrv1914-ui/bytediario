@@ -36,7 +36,7 @@ Sigue esta estructura obligatoria:
 5. Cierre con llamado a la acción: comentar, compartir, dar like, suscribirse y activar la campanita
 
 Tono: {tone}. Lenguaje sencillo, sin tecnicismos exagerados, frases cortas y dinámicas.
-Longitud objetivo: entre {min_w} y {max_w} palabras (para un video de 4 a 8 minutos hablado).
+Longitud objetivo: entre {min_w} y {max_w} palabras (para un video de 10 a 15 minutos hablado).
 
 Responde SIEMPRE en JSON válido, sin texto adicional, con este formato exacto:
 {{
