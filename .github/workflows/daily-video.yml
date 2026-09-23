@@ -13,8 +13,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Instalar FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Instalar FFmpeg, ImageMagick y fuentes
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg imagemagick fonts-dejavu-core
+          # MoviePy usa ImageMagick para quemar texto (subtítulos/barra del canal);
+          # su policy.xml por defecto bloquea esa operación ("@" / lectura de rutas).
+          sudo sed -i '/rights="none" pattern="@\*"/d' /etc/ImageMagick-6/policy.xml || true
 
       - name: Instalar Python
         uses: actions/setup-python@v5

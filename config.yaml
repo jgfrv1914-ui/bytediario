@@ -53,7 +53,7 @@ video:
   background_music_volume: 0.10
   voice_volume: 1.0
   subtitle:
-    font: "Arial-Bold"
+    font: "DejaVu-Sans-Bold"
     fontsize: 48
     color: "white"
     stroke_color: "black"
