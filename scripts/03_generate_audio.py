@@ -6,7 +6,9 @@ Uso:
 """
 import argparse
 import os
+import re
 import sys
+import traceback
 
 import numpy as np
 import soundfile as sf
@@ -17,6 +19,29 @@ from utils import OUTPUT_DIR, get_item, get_logger, load_config, next_item_with_
 logger = get_logger("03_generate_audio")
 
 _PIPELINES = {}
+
+MAX_CHUNK_CHARS = 300  # VITS/MMS-TTS no soporta texto largo en una sola pasada
+
+
+def _split_into_chunks(text: str, max_chars: int = MAX_CHUNK_CHARS) -> list[str]:
+    """Corta el guion en oraciones y las agrupa en trozos cortos para el TTS.
+
+    Guiones de 10-15 min (~1500-1900 palabras) son demasiado largos para una
+    sola pasada de VITS/MMS-TTS (se queda sin memoria o falla en silencio),
+    así que se sintetiza por partes y se concatena el audio resultante.
+    """
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    chunks, current = [], ""
+    for sentence in sentences:
+        candidate = f"{current} {sentence}".strip() if current else sentence
+        if len(candidate) > max_chars and current:
+            chunks.append(current)
+            current = sentence
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    return [c for c in chunks if c.strip()]
 
 
 def generate_audio(item_id: str) -> str:
@@ -31,12 +56,30 @@ def generate_audio(item_id: str) -> str:
         if model_name not in _PIPELINES:
             logger.info(f"Cargando modelo HF TTS '{model_name}' (primera ejecución descarga los pesos)...")
             _PIPELINES[model_name] = pipeline("text-to-speech", model=model_name)
-        result = _PIPELINES[model_name](item["guion_completo"])
-        audio = np.asarray(result["audio"], dtype=np.float32)
-        if audio.ndim > 1:
-            audio = np.squeeze(audio)
-        sample_rate = int(result["sampling_rate"])
+        tts = _PIPELINES[model_name]
+
+        chunks = _split_into_chunks(item["guion_completo"])
+        logger.info(f"Sintetizando audio en {len(chunks)} fragmentos...")
+        sample_rate = None
+        audio_parts = []
+        silence_gap = None
+        for i, chunk in enumerate(chunks):
+            result = tts(chunk)
+            part = np.asarray(result["audio"], dtype=np.float32)
+            if part.ndim > 1:
+                part = np.squeeze(part)
+            if sample_rate is None:
+                sample_rate = int(result["sampling_rate"])
+                silence_gap = np.zeros(int(sample_rate * 0.35), dtype=np.float32)
+            if audio_parts:
+                audio_parts.append(silence_gap)
+            audio_parts.append(part)
+            if (i + 1) % 10 == 0 or i == len(chunks) - 1:
+                logger.info(f"  fragmento {i + 1}/{len(chunks)} listo")
+
+        audio = np.concatenate(audio_parts) if audio_parts else np.zeros(0, dtype=np.float32)
     except Exception as exc:
+        logger.error("Traceback completo del fallo de TTS:\n" + traceback.format_exc())
         raise RuntimeError(
             f"No se pudo cargar o ejecutar el modelo HF TTS '{model_name}'. "
             "Revisa HF_TTS_MODEL, memoria y acceso al modelo."
