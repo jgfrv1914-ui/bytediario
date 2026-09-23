@@ -1,6 +1,6 @@
-# Configuración del canal "ByteDiario" (noticias de tecnología diarias)
+# Configuración del canal "FerTechZone" (noticias de tecnología diarias)
 channel:
-  name: "ByteDiario"
+  name: "FerTechZone"
   language: "es"
   videos_per_run: 1
   privacy_status: "private"   # "private" | "unlisted" | "public"
@@ -69,7 +69,7 @@ thumbnail:
 
 upload:
   tags:
-    - bytediario
+    - fertechzone
     - tecnologia
     - noticias tech
     - inteligencia artificial

@@ -42,9 +42,9 @@ def execute_pipeline(publish: bool):
         root_logger.removeHandler(handler)
 
 
-with gr.Blocks(title="ByteDiario — pipeline local") as demo:
+with gr.Blocks(title="FerTechZone — pipeline local") as demo:
     gr.Markdown(
-        "# ByteDiario\n"
+        "# FerTechZone\n"
         "La publicación diaria automática de "
         "[youtube.com/@fertech-m8e](https://www.youtube.com/@fertech-m8e) corre "
         "en GitHub Actions. Este panel sirve para ejecutar el pipeline "

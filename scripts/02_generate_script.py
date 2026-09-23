@@ -1,6 +1,6 @@
 """
 Paso 2: convierte las noticias seleccionadas en un guion narrado, siguiendo
-la plantilla y el tono del canal "Tech Daily" (presentador cercano, hook fuerte,
+la plantilla y el tono del canal "FerTechZone" (presentador cercano, hook fuerte,
 explicación en 3 partes: qué pasó / por qué importa / qué significa para nosotros).
 
 Uso:

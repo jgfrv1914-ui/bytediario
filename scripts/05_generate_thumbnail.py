@@ -39,7 +39,7 @@ def _hex_to_rgb(hex_color: str) -> tuple:
 def generate_thumbnail(item_id: str) -> str:
     cfg = load_config()
     item = get_item(item_id)
-    title = item.get("titulo_video", "Tech Daily")
+    title = item.get("titulo_video", "FerTechZone")
 
     t_cfg = cfg["thumbnail"]
     w, h = t_cfg["width"], t_cfg["height"]

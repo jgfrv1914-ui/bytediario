@@ -1,5 +1,5 @@
 ---
-title: ByteDiario — pipeline local de noticias
+title: FerTechZone — pipeline local de noticias
 emoji: 📰
 colorFrom: blue
 colorTo: indigo
@@ -11,7 +11,7 @@ python_version: "3.12"
 startup_duration_timeout: 1h
 ---
 
-# ByteDiario: pipeline local
+# FerTechZone: pipeline local
 
 Space y CLI para crear videos de noticias tecnológicas en español:
 

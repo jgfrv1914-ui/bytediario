@@ -28,7 +28,7 @@ logger = get_logger("run_pipeline")
 
 
 def run_once(cfg: dict, skip_upload: bool) -> str:
-    logger.info("=== Iniciando pipeline de Tech Daily ===")
+    logger.info("=== Iniciando pipeline de FerTechZone ===")
 
     stories = fetch_news.fetch_top_stories(cfg)
     item_id = add_to_queue({"stories": stories}, status="news_ready")
