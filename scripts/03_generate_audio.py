@@ -45,8 +45,20 @@ def generate_audio(item_id: str) -> str:
     audio_path = OUTPUT_DIR / f"{item_id}_audio.wav"
     sf.write(str(audio_path), audio, sample_rate)
 
-    update_item(item_id, status="audio_ready", audio_path=str(audio_path))
-    logger.info(f"Audio guardado en {audio_path}")
+    duration_seconds = round(len(audio) / sample_rate, 1)
+    update_item(
+        item_id,
+        status="audio_ready",
+        audio_path=str(audio_path),
+        duracion_audio_final_seg=duration_seconds,
+    )
+    logger.info(f"Audio guardado en {audio_path} ({duration_seconds}s)")
+    if not (600 <= duration_seconds <= 900):
+        logger.warning(
+            f"La duración real del audio ({duration_seconds}s) queda fuera del rango "
+            "objetivo de 600-900s (10-15 min). Revisa min_words/max_words en config.yaml "
+            "si esto se repite seguido."
+        )
     return str(audio_path)
 
 

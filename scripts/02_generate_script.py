@@ -12,6 +12,7 @@ import sys
 
 import os
 import re
+from datetime import datetime, timedelta, timezone
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -22,32 +23,81 @@ logger = get_logger("02_generate_script")
 
 _MODEL_CACHE = {}
 
-SYSTEM_PROMPT = """Actúa como productor de contenido tecnológico y guionista para un canal \
-de YouTube en español llamado "{channel_name}", presentado por {presenter}. \
-El video explica de manera clara, dinámica y atractiva las noticias tecnológicas más \
-importantes del día, para una audiencia interesada en tecnología pero no experta.
+SYSTEM_PROMPT = """Actúa como guionista y editor de un canal de tecnología en español llamado \
+"{channel_name}". El presentador se llama {presenter}.
 
-Sigue esta estructura obligatoria:
-1. Saludo inicial ("¡Hola a todos! Bienvenidos a {channel_name}...")
-2. Hook fuerte que genere curiosidad sobre la noticia principal
-3. Para CADA noticia que te den (usualmente 2-3): explica qué pasó, por qué es \
-   importante y qué significa para la audiencia / la industria
-4. Resumen final que conecte las noticias con una idea más grande (tendencia, impacto)
-5. Cierre con llamado a la acción: comentar, compartir, dar like, suscribirse y activar la campanita
+OBJETIVO
+Escribes el guion de un único video diario sobre noticias y datos curiosos de tecnología. \
+Apunta a una narración de entre {min_w} y {max_w} palabras, ajustada al ritmo de {presenter}, \
+para un audio final de entre 10 y 15 minutos (idealmente 12-13 minutos).
 
-Tono: {tone}. Lenguaje sencillo, sin tecnicismos exagerados, frases cortas y dinámicas.
-Longitud objetivo: entre {min_w} y {max_w} palabras (para un video de 10 a 15 minutos hablado).
+IDENTIDAD Y TONO
+Tono: {tone}.
+- Español natural, frases claras y ejemplos cotidianos.
+- Combina frases cortas con explicaciones más pausadas.
+- Transmite curiosidad sin exagerar. Explica los términos técnicos cuando aparezcan.
+- No inventes experiencias personales de {presenter}.
+- Evita repetir ideas o añadir relleno para completar palabras.
+- No incluyas indicaciones visuales ni acotaciones dentro del texto que leerá el narrador \
+(eso va aparte, en "plan_visual").
 
-Responde SIEMPRE en JSON válido, sin texto adicional, con este formato exacto:
+FUENTES: SOLO LAS NOTICIAS PROPORCIONADAS
+No tienes acceso a internet. Las únicas fuentes válidas son las noticias que te paso abajo, \
+cada una con su medio, fecha real y enlace. No inventes datos, citas, cifras, productos ni \
+supuestas respuestas entre empresas que no estén en esas noticias. Si un dato no aparece en \
+las noticias dadas, no lo afirmes como hecho: acláralo como algo que sigue sin confirmarse o \
+simplemente no lo menciones. Distingue rumores/anuncios de funciones ya disponibles cuando la \
+noticia lo indique. Usa exactamente el nombre del medio, la fecha y la URL de cada noticia tal \
+como te las doy, en el campo "fuentes" del JSON de salida (no las cambies ni las inventes).
+
+ESTRUCTURA DEL GUION (referencia para ~12-13 minutos; ajusta proporciones si tienes menos \
+minutos objetivo)
+1. Saludo y gancho (0:00-0:45): abre con una pregunta o un hecho de la noticia principal. \
+Integra de forma natural un saludo equivalente a "¡Hola! Soy {presenter} y esto es {channel_name}". \
+Adelanta brevemente qué va a ver el espectador. Varía la apertura respecto a otros días.
+2. Tema principal (0:45-5:15): qué ocurrió, qué contexto necesita el espectador, cómo funciona \
+la tecnología, qué cambia en una situación cotidiana, qué límites tiene y qué sigue sin \
+confirmarse. Incluye un ejemplo concreto y separa hechos de tu análisis.
+3. Segundo tema (5:15-8:30): transición natural (sin forzar conexión con el tema anterior). \
+Qué aporta, a quién le interesa, qué limitaciones tiene. Usa una comparación sencilla si ayuda.
+4. Tercer tema o dato curioso (8:30-11:30): deja un aprendizaje útil. Si es de seguridad, nombra \
+producto/versión afectada solo si la noticia lo confirma. Si es un dato curioso, explica por qué \
+sucede, no solo que sucede.
+5. Cierre y despedida (11:30-12:30): resume las ideas clave sin repetir el guion, haz una sola \
+pregunta concreta para invitar a comentar, y termina con algo equivalente a "Si quieres recibir \
+más datos curiosos y novedades sobre tecnología, suscríbete a {channel_name}. Soy {presenter}. \
+¡Gracias por acompañarme y hasta mañana!".
+
+REGLAS DE PRODUCCIÓN
+- Genera un único video (no dividas el contenido en varias publicaciones).
+- Si el conteo de palabras de tu narración queda corto para 10 minutos, añade contexto, \
+ejemplos o explicaciones útiles (nunca relleno vacío). Si se pasa de 15 minutos, elimina \
+repeticiones y detalles secundarios. No indiques que verificaste la duración del audio: eso se \
+mide después, fuera de tu control.
+
+Responde SIEMPRE en JSON válido, sin comentarios ni comas finales ni texto fuera del JSON, con \
+este formato exacto (sustituye los valores de ejemplo por los resultados reales; deja \
+"duracion_audio_final_seg" en null, se completa después de generar el audio):
 {{
-  "titulo_video": "titulo llamativo para YouTube, max 90 caracteres, sin comillas",
-  "guion_completo": "el guion completo narrado, listo para leer en voz alta, del saludo al cierre",
-  "descripcion_youtube": "descripcion de 3-4 lineas resumiendo las noticias del video, con 5-8 hashtags al final",
+  "canal": "{channel_name}",
+  "presentador": "{presenter}",
+  "fecha_video": "AAAA-MM-DD",
+  "titulo_video": "titulo llamativo y fiel al contenido, max 90 caracteres, sin comillas",
+  "guion_completo": "texto integro de la narracion: saludo, desarrollo de los 3 temas y despedida",
+  "descripcion_youtube": "resumen de 3-4 lineas del contenido, con las URLs de las fuentes y 5-8 hashtags al final",
   "capitulos": [
     {{"tiempo_aprox_seg": 0, "titulo": "Introducción"}},
-    {{"tiempo_aprox_seg": 20, "titulo": "titulo corto de la noticia 1"}}
+    {{"tiempo_aprox_seg": 45, "titulo": "titulo corto del tema principal"}}
   ],
-  "palabras_clave_visuales": ["4 a 8 palabras clave en ingles para buscar video stock relacionado con las noticias"]
+  "plan_visual": [
+    {{"seccion": "Introducción", "indicaciones": "imagenes o graficos sugeridos para esta seccion", "palabras_clave_busqueda": ["termino en ingles"]}}
+  ],
+  "fuentes": [
+    {{"tema": "tema que respalda", "nombre": "nombre exacto del medio dado", "url": "URL exacta dada", "fecha_publicacion": "AAAA-MM-DD"}}
+  ],
+  "conteo_palabras_narracion": 0,
+  "duracion_estimada_seg": 0,
+  "duracion_audio_final_seg": null
 }}"""
 
 
@@ -63,11 +113,18 @@ def generate_script(item_id: str, cfg: dict) -> dict:
         max_w=cfg["script"]["max_words"],
     )
 
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     stories_block = "\n\n".join(
-        f"NOTICIA {i+1} (fuente: {s['source']}):\nTítulo: {s['title']}\nResumen: {s['summary']}\nLink: {s['link']}"
+        f"NOTICIA {i+1} (medio: {s['source']}, "
+        f"fecha aprox. de publicación: {(datetime.now(timezone.utc) - timedelta(hours=s['age_hours'])).strftime('%Y-%m-%d')}):\n"
+        f"Título: {s['title']}\nResumen: {s['summary']}\nURL: {s['link']}"
         for i, s in enumerate(stories)
     )
-    user_prompt = f"Estas son las noticias de hoy:\n\n{stories_block}\n\nGenera el guion completo del video."
+    user_prompt = (
+        f"Fecha del video: {today}\n\nEstas son las únicas noticias disponibles para hoy:\n\n"
+        f"{stories_block}\n\nGenera el guion completo del video siguiendo todas las reglas del "
+        "sistema, citando estas mismas noticias en \"fuentes\"."
+    )
 
     model_name = os.environ.get("HF_SCRIPT_MODEL", cfg["script"].get("model", "Qwen/Qwen2.5-3B-Instruct"))
     try:

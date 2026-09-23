@@ -36,11 +36,11 @@ news:
 
 script:
   model: "Qwen/Qwen2.5-3B-Instruct"  # se puede sobrescribir con HF_SCRIPT_MODEL
-  max_new_tokens: 4096
+  max_new_tokens: 5120
   temperature: 0.7
   top_p: 0.9
   min_words: 1500
-  max_words: 2200
+  max_words: 1900
   tone: "cercano, dinámico, profesional pero amigable, como explicándole a un amigo"
 
 tts:
