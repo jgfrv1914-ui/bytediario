@@ -1,0 +1,9 @@
+.env
+youtube_client_secret*.json
+token.json
+__pycache__/
+*.pyc
+venv/
+data/queue.json
+output/
+logs/

@@ -1,0 +1,78 @@
+# Configuración del canal "ByteDiario" (noticias de tecnología diarias)
+channel:
+  name: "ByteDiario"
+  language: "es"
+  videos_per_run: 1
+  privacy_status: "private"   # "private" | "unlisted" | "public"
+  presenter_name: "Alex"      # nombre del presentador/personaje principal, se usa en el guion
+
+# Fuentes RSS de noticias tech (puedes agregar/quitar)
+news_sources:
+  - name: "TechCrunch"
+    url: "https://techcrunch.com/feed/"
+  - name: "The Verge"
+    url: "https://www.theverge.com/rss/index.xml"
+  - name: "Engadget"
+    url: "https://www.engadget.com/rss.xml"
+  - name: "Ars Technica"
+    url: "https://feeds.arstechnica.com/arstechnica/index"
+  - name: "Wired"
+    url: "https://www.wired.com/feed/rss"
+  - name: "Xataka"
+    url: "https://www.xataka.com/feedburner.xml"
+
+news:
+  stories_per_video: 3        # cuántas noticias combina cada video
+  max_age_hours: 36           # ignora noticias más viejas que esto
+  keywords_boost:             # noticias que mencionen esto suben de prioridad
+    - "inteligencia artificial"
+    - "AI"
+    - "OpenAI"
+    - "Apple"
+    - "Google"
+    - "seguridad"
+    - "lanzamiento"
+    - "actualización"
+
+script:
+  model: "Qwen/Qwen2.5-3B-Instruct"  # se puede sobrescribir con HF_SCRIPT_MODEL
+  max_new_tokens: 2048
+  temperature: 0.7
+  top_p: 0.9
+  min_words: 500
+  max_words: 700
+  tone: "cercano, dinámico, profesional pero amigable, como explicándole a un amigo"
+
+tts:
+  model: "facebook/mms-tts-spa"       # se puede sobrescribir con HF_TTS_MODEL
+
+video:
+  width: 1920
+  height: 1080
+  fps: 30
+  background_music_volume: 0.10
+  voice_volume: 1.0
+  subtitle:
+    font: "Arial-Bold"
+    fontsize: 48
+    color: "white"
+    stroke_color: "black"
+    stroke_width: 2
+    position_from_bottom: 140
+
+thumbnail:
+  width: 1280
+  height: 720
+  background_color: "#0b0f1a"
+  accent_color: "#3ea6ff"
+  font_size_title: 90
+
+upload:
+  tags:
+    - bytediario
+    - tecnologia
+    - noticias tech
+    - inteligencia artificial
+    - tech news
+    - actualidad tecnologica
+  category_id: "28"   # 28 = Science & Technology en YouTube
