@@ -128,40 +128,64 @@ def generate_script(item_id: str, cfg: dict) -> dict:
     )
 
     model_name = os.environ.get("HF_SCRIPT_MODEL") or cfg["script"].get("model", "Qwen/Qwen2.5-3B-Instruct")
-    try:
-        tokenizer, model = _load_model(model_name)
-        messages = [{"role": "system", "content": system}, {"role": "user", "content": user_prompt}]
-        prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-        with torch.inference_mode():
-            output = model.generate(
-                **inputs,
-                max_new_tokens=int(cfg["script"].get("max_new_tokens", 2048)),
-                do_sample=True,
-                temperature=float(cfg["script"].get("temperature", 0.7)),
-                top_p=float(cfg["script"].get("top_p", 0.9)),
+    min_words = int(cfg["script"]["min_words"])
+    max_attempts = int(cfg["script"].get("max_attempts", 3))
+    tokenizer, model = _load_model(model_name)
+
+    data = None
+    for attempt in range(1, max_attempts + 1):
+        attempt_user_prompt = user_prompt
+        if attempt > 1:
+            attempt_user_prompt += (
+                f"\n\nIMPORTANTE: tu intento anterior generó un guion demasiado corto. "
+                f"\"guion_completo\" debe tener como mínimo {min_words} palabras reales de "
+                "narración (no cuentes el resto del JSON). Desarrolla cada tema con más "
+                "contexto, ejemplos y explicaciones hasta alcanzar esa longitud."
             )
-        raw_text = tokenizer.decode(output[0][inputs["input_ids"].shape[-1] :], skip_special_tokens=True).strip()
-    except Exception as exc:
-        raise RuntimeError(
-            f"No se pudo cargar o ejecutar el modelo HF de guion '{model_name}'. "
-            "Revisa HF_SCRIPT_MODEL, memoria y acceso al modelo."
-        ) from exc
+        try:
+            messages = [{"role": "system", "content": system}, {"role": "user", "content": attempt_user_prompt}]
+            prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+            with torch.inference_mode():
+                output = model.generate(
+                    **inputs,
+                    max_new_tokens=int(cfg["script"].get("max_new_tokens", 2048)),
+                    do_sample=True,
+                    temperature=float(cfg["script"].get("temperature", 0.7)),
+                    top_p=float(cfg["script"].get("top_p", 0.9)),
+                )
+            raw_text = tokenizer.decode(output[0][inputs["input_ids"].shape[-1] :], skip_special_tokens=True).strip()
+        except Exception as exc:
+            raise RuntimeError(
+                f"No se pudo cargar o ejecutar el modelo HF de guion '{model_name}'. "
+                "Revisa HF_SCRIPT_MODEL, memoria y acceso al modelo."
+            ) from exc
 
-    if raw_text.startswith("```"):
-        raw_text = raw_text.strip("`")
-        raw_text = raw_text.split("\n", 1)[1] if "\n" in raw_text else raw_text
-        raw_text = raw_text.rsplit("```", 1)[0]
+        if raw_text.startswith("```"):
+            raw_text = raw_text.strip("`")
+            raw_text = raw_text.split("\n", 1)[1] if "\n" in raw_text else raw_text
+            raw_text = raw_text.rsplit("```", 1)[0]
 
-    # Algunos modelos envuelven el JSON en texto o bloques Markdown.
-    match = re.search(r"\{.*\}", raw_text, flags=re.DOTALL)
-    json_candidate = match.group(0) if match else raw_text
-    try:
-        data = json.loads(json_candidate)
-    except json.JSONDecodeError:
-        # El modelo a veces deja comillas sin escapar o comas colgantes;
-        # json_repair reconstruye el JSON de forma heurística en esos casos.
-        data = json.loads(repair_json(json_candidate))
+        # Algunos modelos envuelven el JSON en texto o bloques Markdown.
+        match = re.search(r"\{.*\}", raw_text, flags=re.DOTALL)
+        json_candidate = match.group(0) if match else raw_text
+        try:
+            attempt_data = json.loads(json_candidate)
+        except json.JSONDecodeError:
+            # El modelo a veces deja comillas sin escapar o comas colgantes;
+            # json_repair reconstruye el JSON de forma heurística en esos casos.
+            attempt_data = json.loads(repair_json(json_candidate))
+
+        word_count = len(attempt_data.get("guion_completo", "").split())
+        if word_count >= min_words * 0.85:
+            data = attempt_data
+            break
+        logger.warning(
+            f"Intento {attempt}/{max_attempts}: guion de solo {word_count} palabras "
+            f"(mínimo esperado {min_words}). Reintentando..."
+        )
+        data = attempt_data  # nos quedamos con el último por si se agotan los intentos
+
     update_item(item_id, status="script_ready", **data)
     return data
 
