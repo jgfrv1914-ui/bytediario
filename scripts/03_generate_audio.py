@@ -12,13 +12,14 @@ import traceback
 
 import numpy as np
 import soundfile as sf
-from transformers import pipeline
+import torch
+from transformers import AutoTokenizer, VitsModel
 
 from utils import OUTPUT_DIR, get_item, get_logger, load_config, next_item_with_status, update_item
 
 logger = get_logger("03_generate_audio")
 
-_PIPELINES = {}
+_MODELS = {}
 
 MAX_CHUNK_CHARS = 300  # VITS/MMS-TTS no soporta texto largo en una sola pasada
 
@@ -53,24 +54,24 @@ def generate_audio(item_id: str) -> str:
     cfg = load_config()
     model_name = os.environ.get("HF_TTS_MODEL") or cfg.get("tts", {}).get("model", "facebook/mms-tts-spa")
     try:
-        if model_name not in _PIPELINES:
+        if model_name not in _MODELS:
             logger.info(f"Cargando modelo HF TTS '{model_name}' (primera ejecución descarga los pesos)...")
-            _PIPELINES[model_name] = pipeline("text-to-speech", model=model_name)
-        tts = _PIPELINES[model_name]
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model = VitsModel.from_pretrained(model_name)
+            model.eval()
+            _MODELS[model_name] = (tokenizer, model)
+        tokenizer, model = _MODELS[model_name]
+        sample_rate = int(model.config.sampling_rate)
 
         chunks = _split_into_chunks(item["guion_completo"])
         logger.info(f"Sintetizando audio en {len(chunks)} fragmentos...")
-        sample_rate = None
         audio_parts = []
-        silence_gap = None
+        silence_gap = np.zeros(int(sample_rate * 0.35), dtype=np.float32)
         for i, chunk in enumerate(chunks):
-            result = tts(chunk)
-            part = np.asarray(result["audio"], dtype=np.float32)
-            if part.ndim > 1:
-                part = np.squeeze(part)
-            if sample_rate is None:
-                sample_rate = int(result["sampling_rate"])
-                silence_gap = np.zeros(int(sample_rate * 0.35), dtype=np.float32)
+            inputs = tokenizer(chunk, return_tensors="pt")
+            with torch.no_grad():
+                output = model(**inputs).waveform
+            part = output.squeeze().cpu().numpy().astype(np.float32)
             if audio_parts:
                 audio_parts.append(silence_gap)
             audio_parts.append(part)
