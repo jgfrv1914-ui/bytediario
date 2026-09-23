@@ -15,6 +15,7 @@ import re
 from datetime import datetime, timedelta, timezone
 
 import torch
+from json_repair import repair_json
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from utils import get_item, get_logger, load_config, next_item_with_status, update_item
@@ -154,7 +155,13 @@ def generate_script(item_id: str, cfg: dict) -> dict:
 
     # Algunos modelos envuelven el JSON en texto o bloques Markdown.
     match = re.search(r"\{.*\}", raw_text, flags=re.DOTALL)
-    data = json.loads(match.group(0) if match else raw_text)
+    json_candidate = match.group(0) if match else raw_text
+    try:
+        data = json.loads(json_candidate)
+    except json.JSONDecodeError:
+        # El modelo a veces deja comillas sin escapar o comas colgantes;
+        # json_repair reconstruye el JSON de forma heurística en esos casos.
+        data = json.loads(repair_json(json_candidate))
     update_item(item_id, status="script_ready", **data)
     return data
 
