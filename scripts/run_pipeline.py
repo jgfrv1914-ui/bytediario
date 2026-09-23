@@ -14,7 +14,7 @@ import argparse
 import importlib
 import sys
 
-from utils import add_to_queue, get_logger, load_config
+from utils import add_to_queue, ensure_dirs, get_logger, load_config
 
 fetch_news = importlib.import_module("01_fetch_news")
 gen_script = importlib.import_module("02_generate_script")
@@ -29,6 +29,7 @@ logger = get_logger("run_pipeline")
 
 def run_once(cfg: dict, skip_upload: bool) -> str:
     logger.info("=== Iniciando pipeline de FerTechZone ===")
+    ensure_dirs()
 
     stories = fetch_news.fetch_top_stories(cfg)
     item_id = add_to_queue({"stories": stories}, status="news_ready")
