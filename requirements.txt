@@ -8,6 +8,7 @@ moviepy>=1.0.3,<2.0.0
 faster-whisper>=1.0.3
 transformers>=4.48.0
 accelerate>=1.2.0
+diffusers>=0.31.0
 sentencepiece>=0.2.0
 soundfile>=0.12.1
 google-api-python-client>=2.140.0

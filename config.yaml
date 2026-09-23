@@ -52,6 +52,7 @@ video:
   fps: 30
   background_music_volume: 0.10
   voice_volume: 1.0
+  burn_subtitles: false   # si es true, quema los subtítulos en el video; si es false, van solo como pista CC opcional en YouTube
   subtitle:
     font: "DejaVu-Sans-Bold"
     fontsize: 48
@@ -59,6 +60,12 @@ video:
     stroke_color: "black"
     stroke_width: 2
     position_from_bottom: 140
+  background:
+    mode: "ai_generated"   # "ai_generated" | "gradient"
+    model: "runwayml/stable-diffusion-v1-5"   # licencia OpenRAIL-M, permite uso comercial; se puede sobrescribir con HF_IMAGE_MODEL
+    steps: 15
+    width: 768
+    height: 432
 
 thumbnail:
   width: 1280

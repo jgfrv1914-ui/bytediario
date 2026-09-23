@@ -27,7 +27,10 @@ from utils import ROOT, get_item, get_logger, load_config, next_item_with_status
 
 logger = get_logger("07_upload_youtube")
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.force-ssl",  # necesario para subir la pista de subtítulos (CC)
+]
 TOKEN_FILE = ROOT / "token.json"
 
 
@@ -127,6 +130,25 @@ def upload_video(item_id: str) -> str:
             youtube.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(thumbnail_path)).execute()
         except Exception as e:
             logger.warning(f"No se pudo subir la miniatura (¿cuenta sin verificar en YouTube?): {e}")
+
+    captions_srt_path = item.get("captions_srt_path")
+    if captions_srt_path and Path(captions_srt_path).exists():
+        logger.info("Subiendo subtítulos como pista opcional (CC)...")
+        try:
+            youtube.captions().insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "videoId": video_id,
+                        "language": "es",
+                        "name": "Español",
+                        "isDraft": False,
+                    }
+                },
+                media_body=MediaFileUpload(captions_srt_path, mimetype="application/octet-stream"),
+            ).execute()
+        except Exception as e:
+            logger.warning(f"No se pudo subir la pista de subtítulos: {e}")
 
     update_item(item_id, status="uploaded", youtube_video_id=video_id, youtube_url=video_url)
     logger.info(f"¡Video publicado! {video_url}")

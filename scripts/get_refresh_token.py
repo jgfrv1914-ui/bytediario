@@ -21,7 +21,10 @@ from pathlib import Path
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 ROOT = Path(__file__).resolve().parent.parent
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.force-ssl",  # necesario para subir la pista de subtítulos (CC)
+]
 
 
 def main():
