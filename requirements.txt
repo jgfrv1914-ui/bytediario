@@ -6,6 +6,8 @@ Pillow>=10.4.0
 numpy>=1.26.0
 moviepy>=1.0.3,<2.0.0
 faster-whisper>=1.0.3
+# PyAV 15 quitó el argumento metadata_errors que faster-whisper usa al abrir el audio
+av<15
 transformers>=4.48.0
 accelerate>=1.2.0
 diffusers>=0.31.0
